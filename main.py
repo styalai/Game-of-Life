@@ -80,8 +80,8 @@ def visualize_grids(grid_a, grid_b, title_a="Grid A", title_b="Grid B"):
 if __name__ == "__main__":
 
     CELL    = 8
-    COLS    = 100
-    ROWS    = 100
+    COLS    = 1000
+    ROWS    = 1000
     PADDING = 8   # gap between the two grids
 
     WIDTH  = COLS * CELL * 2 + PADDING
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     kernel = tilelang.compile(program, out_idx=-1, target="cuda", execution_backend="cython")
 
     a = make_grid()
-    n_steps = 100
+    n_steps = 10000
 
     # with kernel
     start = time.time()
@@ -102,12 +102,15 @@ if __name__ == "__main__":
     print(f"kernel() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
 
     # without
-    start = time.time()
-    bcpu = a
-    for i in tqdm(range(n_steps)):
-        bcpu = step(bcpu)
-    elapsed = time.time() - start
-    print(f"step() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
+    #start = time.time()
+    #bcpu = a
+    #for i in tqdm(range(n_steps)):
+    #    bcpu = step(bcpu)
+    #elapsed = time.time() - start
+    #print(f"step() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
 
-    visualize_grids(bcpu, b,
+    visualize_grids(a, b,
                     title_a="original", title_b=f"After {n_steps}")
+
+# 100x100: kernel() 10000 steps: 0.335843s  (0.034 ms/step)
+# 1000x1000: kernel() 10000 steps: 0.837147s  (0.084 ms/step
