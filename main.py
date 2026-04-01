@@ -1,17 +1,21 @@
-import random, pyxel, time
+import random, pyxel, time, torch
+from kernel import step_kernel
+import tilelang
+import tilelang.language as T
+from tqdm import tqdm
 
 def make_grid(random_fill=True):
     if random_fill:
-        return [[random.random() < 0.3 for _ in range(COLS)] for _ in range(ROWS)]
-    return [[False] * COLS for _ in range(ROWS)]
+        return torch.tensor([[int(random.random() < 0.3) for _ in range(COLS)] for _ in range(ROWS)])
+    return torch.tensor([[0] * COLS for _ in range(ROWS)])
 
 
 def step(grid):
-    new = [[False] * COLS for _ in range(ROWS)]
+    new = [[0] * COLS for _ in range(ROWS)]
     for r in range(ROWS):
         for c in range(COLS):
             live_neighbors = sum(
-                grid[(r + dr) % ROWS][(c + dc) % COLS]
+                grid[max(0, min(ROWS-1, r + dr))][max(0, min(COLS-1, c + dc))]
                 for dr in (-1, 0, 1)
                 for dc in (-1, 0, 1)
                 if (dr, dc) != (0, 0)
@@ -76,22 +80,34 @@ def visualize_grids(grid_a, grid_b, title_a="Grid A", title_b="Grid B"):
 if __name__ == "__main__":
 
     CELL    = 8
-    COLS    = 200
-    ROWS    = 200
+    COLS    = 100
+    ROWS    = 100
     PADDING = 8   # gap between the two grids
 
     WIDTH  = COLS * CELL * 2 + PADDING
     HEIGHT = ROWS * CELL + 16   # 16px for labels
 
+    program = step_kernel(ROWS, COLS, BLOCK_N=16, BLOCK_M=16, dtype=T.float16, threads=256)
+    kernel = tilelang.compile(program, out_idx=-1, target="cuda", execution_backend="cython")
+
     a = make_grid()
-    n_steps = 1000
+    n_steps = 100
 
+    # with kernel
     start = time.time()
-    b = a
+    b = a.clone().cuda().half()
     for i in range(n_steps):
-        b = step(b)
+        b = kernel(b)
     elapsed = time.time() - start
-    print(f"step() x{n_steps}: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
+    print(f"kernel() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
 
-    visualize_grids(a, b,
+    # without
+    start = time.time()
+    bcpu = a
+    for i in tqdm(range(n_steps)):
+        bcpu = step(bcpu)
+    elapsed = time.time() - start
+    print(f"step() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
+
+    visualize_grids(bcpu, b,
                     title_a="original", title_b=f"After {n_steps}")
