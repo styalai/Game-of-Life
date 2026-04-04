@@ -3,6 +3,7 @@ from kernel import step_kernel
 import tilelang
 import tilelang.language as T
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 def make_grid(random_fill=True):
     if random_fill:
@@ -80,8 +81,8 @@ def visualize_grids(grid_a, grid_b, title_a="Grid A", title_b="Grid B"):
 if __name__ == "__main__":
 
     CELL    = 8
-    COLS    = 1000
-    ROWS    = 1000
+    COLS    = 10000
+    ROWS    = 10000
     PADDING = 8   # gap between the two grids
 
     WIDTH  = COLS * CELL * 2 + PADDING
@@ -91,7 +92,15 @@ if __name__ == "__main__":
     kernel = tilelang.compile(program, out_idx=-1, target="cuda", execution_backend="cython")
 
     a = make_grid()
-    n_steps = 10000
+    n_steps = 1000
+
+    # without kernel
+    #start = time.time()
+    #bcpu = a
+    #for i in tqdm(range(n_steps)):
+    #    bcpu = step(bcpu)
+    #elapsed = time.time() - start
+    #print(f"step() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
 
     # with kernel
     start = time.time()
@@ -101,16 +110,21 @@ if __name__ == "__main__":
     elapsed = time.time() - start
     print(f"kernel() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
 
-    # without
-    #start = time.time()
-    #bcpu = a
-    #for i in tqdm(range(n_steps)):
-    #    bcpu = step(bcpu)
-    #elapsed = time.time() - start
-    #print(f"step() {n_steps} steps: {elapsed:.6f}s  ({elapsed/n_steps*1000:.3f} ms/step)")
+    plt.imshow(a, cmap="binary")
+    plt.title(f"original")
+    plt.axis("off")
 
-    visualize_grids(a, b,
-                    title_a="original", title_b=f"After {n_steps}")
+    #plt.imshow(bcpu, cmap="binary")
+    #plt.title(f"cpu Step {i}")
+    #plt.axis("off")
+
+    plt.imshow(b.cpu(), cmap="binary")
+    plt.title(f"gpu Step {i}")
+    plt.axis("off")
+    plt.show()
+    
+    #visualize_grids(a, b,
+    #                title_a="original", title_b=f"After {n_steps}")
 
 # 100x100: kernel() 10000 steps: 0.335843s  (0.034 ms/step)
 # 1000x1000: kernel() 10000 steps: 0.837147s  (0.084 ms/step
